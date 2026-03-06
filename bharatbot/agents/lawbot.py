@@ -7,14 +7,9 @@ free legal aid. References Indian laws (IPC, CrPC) and Lok Adalat.
 """
 
 import logging
-import os
 from typing import Optional
 
-from dotenv import load_dotenv
-
 from agents.base_agent import BaseAgent
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -75,16 +70,13 @@ IMPORTANT BEHAVIORAL RULES:
 class LawBot(BaseAgent):
     """Legal information domain agent for BharatBot.
 
-    Inherits chat management from BaseAgent and loads its Azure Foundry
-    agent ID from the LAWBOT_AGENT_ID environment variable.
+    Inherits chat management from BaseAgent powered by Google Gemini.
     """
 
     def __init__(self) -> None:
-        """Initialise LawBot with the legal system prompt and agent ID."""
+        """Initialise LawBot with the legal system prompt."""
         super().__init__(system_prompt=SYSTEM_PROMPT)
-        self.agent_id: str = os.getenv("LAWBOT_AGENT_ID", "")
-        if not self.agent_id:
-            logger.warning("LAWBOT_AGENT_ID not set; will use OpenAI fallback.")
+        logger.info("LawBot initialised with Google Gemini backend.")
 
     async def respond(
         self,
@@ -103,7 +95,6 @@ class LawBot(BaseAgent):
         logger.info("LawBot processing message (thread=%s): %.60s", thread_id, user_message)
         response, new_thread_id = await self.chat(
             user_message=user_message,
-            agent_id=self.agent_id,
             thread_id=thread_id,
         )
         return response, new_thread_id

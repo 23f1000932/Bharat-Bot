@@ -24,6 +24,7 @@ TRANSLATOR_KEY: str = os.getenv("TRANSLATOR_KEY", "")
 TRANSLATOR_ENDPOINT: str = os.getenv(
     "TRANSLATOR_ENDPOINT", "https://api.cognitive.microsofttranslator.com"
 )
+TRANSLATOR_REGION: str = os.getenv("TRANSLATOR_REGION", "centralindia")
 
 # Maps ISO 639-1 language codes to Azure Speech Service locale codes
 LANG_CODE_MAP: dict[str, str] = {
@@ -77,14 +78,16 @@ async def detect_language(text: str) -> str:
     url = f"{TRANSLATOR_ENDPOINT}/detect"
     headers = {
         "Ocp-Apim-Subscription-Key": TRANSLATOR_KEY,
-        "Ocp-Apim-Subscription-Region": "global",
+        "Ocp-Apim-Subscription-Region": TRANSLATOR_REGION,
         "Content-Type": "application/json",
     }
     body = [{"text": text[:500]}]  # API limit; trimming for efficiency
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(url, headers=headers, json=body, params={"api-version": "3.0"})
+            response = await client.post(
+                url, headers=headers, json=body, params={"api-version": "3.0"}
+            )
             response.raise_for_status()
             data = response.json()
             detected: str = data[0].get("language", "hi")
@@ -117,7 +120,7 @@ async def translate_text(text: str, from_lang: str, to_lang: str) -> str:
     url = f"{TRANSLATOR_ENDPOINT}/translate"
     headers = {
         "Ocp-Apim-Subscription-Key": TRANSLATOR_KEY,
-        "Ocp-Apim-Subscription-Region": "global",
+        "Ocp-Apim-Subscription-Region": TRANSLATOR_REGION,
         "Content-Type": "application/json",
     }
     params = {
@@ -136,7 +139,10 @@ async def translate_text(text: str, from_lang: str, to_lang: str) -> str:
             logger.info("Translated from '%s' to '%s'.", from_lang, to_lang)
             return translated
     except Exception as exc:
-        logger.error("Translation failed (%s→%s): %s. Returning original text.", from_lang, to_lang, exc)
+        logger.error(
+            "Translation failed (%s→%s): %s. Returning original text.",
+            from_lang, to_lang, exc,
+        )
         return text
 
 

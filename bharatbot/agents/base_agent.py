@@ -1,38 +1,48 @@
 """
 agents/base_agent.py – Base agent class for BharatBot domain agents.
 
-Provides a unified async chat interface that first attempts to use the
-Azure AI Foundry Agent Service (AIProjectClient) and falls back to a direct
-Azure OpenAI API call if the Foundry SDK is unavailable or fails.
+Provides a unified async chat interface powered by Google Gemini
+(gemini-1.5-flash) with per-thread conversation history management.
 """
 
 import logging
 import os
+import uuid
 from typing import Optional
 
+import google.generativeai as genai
 from dotenv import load_dotenv
-from openai import AsyncAzureOpenAI
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-AZURE_OPENAI_ENDPOINT: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
-AZURE_OPENAI_KEY: str = os.getenv("AZURE_OPENAI_KEY", "")
-AZURE_OPENAI_DEPLOYMENT: str = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
-FOUNDRY_PROJECT_ENDPOINT: str = os.getenv("FOUNDRY_PROJECT_ENDPOINT", "")
+# ---------------------------------------------------------------------------
+# Gemini configuration
+# ---------------------------------------------------------------------------
+
+GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    logger.info("Google Gemini API configured successfully.")
+else:
+    logger.warning("GEMINI_API_KEY not set; LLM features will be unavailable.")
 
 
 class BaseAgent:
     """Base class for BharatBot domain AI agents.
 
-    Provides an async `chat` method that manages conversation threads using
-    Azure AI Foundry Agent Service.  If the Foundry SDK is unavailable or
-    the API call fails, it falls back to a direct Azure OpenAI completion.
+    Provides an async ``chat`` method that manages conversation threads
+    using Google Gemini (gemini-1.5-flash) with in-memory history storage.
 
     Attributes:
         system_prompt: The agent's system instructions (English + language routing).
     """
+
+    # Shared conversation history across all agents keyed by thread_id.
+    # Each value is a list of {"role": ..., "parts": ...} dicts.
+    _conversation_history: dict[str, list[dict]] = {}
 
     def __init__(self, system_prompt: str) -> None:
         """Initialise the base agent with a system prompt.
@@ -40,154 +50,87 @@ class BaseAgent:
         Args:
             system_prompt: The agent-specific system prompt string.
         """
-        self.system_prompt = system_prompt
+        self.system_prompt: str = system_prompt
+        self._model = None
+
+        if GEMINI_API_KEY:
+            try:
+                self._model = genai.GenerativeModel(
+                    model_name="gemini-1.5-flash",
+                    system_instruction=system_prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        max_output_tokens=1024,
+                        temperature=0.7,
+                    ),
+                )
+                logger.info("Gemini model initialised for agent.")
+            except Exception as exc:
+                logger.error("Failed to initialise Gemini model: %s", exc)
 
     async def chat(
         self,
         user_message: str,
-        agent_id: str,
         thread_id: Optional[str] = None,
     ) -> tuple[str, str]:
-        """Send a message to the Azure Foundry agent and return the response.
+        """Send a message to Google Gemini and return the response.
 
-        Tries Azure AI Foundry Agent Service first.  On any failure, falls
-        back to a direct Azure OpenAI chat completion using the same system
-        prompt.
+        Maintains conversation history per thread_id using an in-memory
+        dictionary so that follow-up messages have full context.
 
         Args:
             user_message: The user's input message.
-            agent_id: The Azure Foundry agent ID (e.g. "asst_xxxx").
             thread_id: Optional existing conversation thread ID to continue.
+                       A new UUID is generated if not provided.
 
         Returns:
             A tuple of (response_text, thread_id) where thread_id can be
             passed back in subsequent calls to continue the conversation.
         """
-        # Try Foundry Agent Service first
-        if FOUNDRY_PROJECT_ENDPOINT and agent_id and not agent_id.startswith("asst_xxx"):
-            try:
-                result, tid = await self._foundry_chat(user_message, agent_id, thread_id)
-                return result, tid
-            except Exception as exc:
-                logger.warning(
-                    "Foundry agent call failed (%s); falling back to Azure OpenAI: %s",
-                    agent_id, exc,
-                )
+        # Generate a thread_id if not provided
+        if not thread_id:
+            thread_id = str(uuid.uuid4())
+            logger.info("Created new conversation thread: %s", thread_id)
 
-        # Fallback: direct Azure OpenAI API call
-        return await self._openai_fallback(user_message, thread_id or "fallback")
-
-    async def _foundry_chat(
-        self,
-        user_message: str,
-        agent_id: str,
-        thread_id: Optional[str],
-    ) -> tuple[str, str]:
-        """Use Azure AI Foundry AIProjectClient to send a message.
-
-        Args:
-            user_message: The user's message.
-            agent_id: Azure Foundry agent ID.
-            thread_id: Optional existing thread ID.
-
-        Returns:
-            Tuple of (response_text, thread_id).
-
-        Raises:
-            Exception: Propagates any SDK or API error to the caller.
-        """
-        import asyncio  # noqa: PLC0415
-        from azure.ai.projects import AIProjectClient  # noqa: PLC0415
-        from azure.identity import DefaultAzureCredential  # noqa: PLC0415
-
-        client = AIProjectClient(
-            endpoint=FOUNDRY_PROJECT_ENDPOINT,
-            credential=DefaultAzureCredential(),
-        )
-
-        agents_client = client.agents
-
-        # Create or reuse a thread
-        if thread_id is None:
-            thread = agents_client.create_thread()
-            thread_id = thread.id
-            logger.info("Created new Foundry thread: %s", thread_id)
-        else:
-            logger.info("Reusing Foundry thread: %s", thread_id)
-
-        # Add user message to thread
-        agents_client.create_message(
-            thread_id=thread_id,
-            role="user",
-            content=user_message,
-        )
-
-        # Create and poll the run
-        run = agents_client.create_and_process_run(
-            thread_id=thread_id,
-            agent_id=agent_id,
-        )
-
-        if run.status != "completed":
-            raise RuntimeError(f"Foundry run ended with status: {run.status}")
-
-        # Retrieve the latest assistant message
-        messages = agents_client.list_messages(thread_id=thread_id)
-        for msg in messages.data:
-            if msg.role == "assistant":
-                for content_block in msg.content:
-                    if hasattr(content_block, "text"):
-                        return content_block.text.value, thread_id
-
-        raise RuntimeError("No assistant message found in Foundry thread response.")
-
-    async def _openai_fallback(
-        self,
-        user_message: str,
-        thread_id: str,
-    ) -> tuple[str, str]:
-        """Fall back to direct Azure OpenAI API call using the system prompt.
-
-        Args:
-            user_message: The user's message.
-            thread_id: Passed through unchanged (no real thread management here).
-
-        Returns:
-            Tuple of (response_text, thread_id).
-        """
-        if not AZURE_OPENAI_KEY or not AZURE_OPENAI_ENDPOINT:
-            logger.error("Azure OpenAI credentials not configured.")
+        # Check that Gemini is available
+        if self._model is None:
+            logger.error("Gemini model is not available. Check GEMINI_API_KEY.")
             return (
-                "I'm sorry, I'm currently unable to connect to the AI service. "
-                "Please check your configuration.",
+                "मुझे खेद है, अभी सेवा उपलब्ध नहीं है। कृपया थोड़ी देर बाद पुनः प्रयास करें। "
+                "(Service temporarily unavailable. Please try again later.)",
                 thread_id,
             )
 
         try:
-            client = AsyncAzureOpenAI(
-                api_key=AZURE_OPENAI_KEY,
-                azure_endpoint=AZURE_OPENAI_ENDPOINT,
-                api_version="2024-02-01",
-            )
+            # Initialise history for new threads
+            if thread_id not in self._conversation_history:
+                self._conversation_history[thread_id] = []
 
-            response = await client.chat.completions.create(
-                model=AZURE_OPENAI_DEPLOYMENT,
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
-                max_tokens=1024,
-                temperature=0.7,
-            )
+            history: list[dict] = self._conversation_history[thread_id]
 
-            answer: str = response.choices[0].message.content or ""
-            logger.info("OpenAI fallback response obtained (%d chars).", len(answer))
+            # Start a chat session with existing history
+            chat_session = self._model.start_chat(history=history)
+
+            # Send the user message and get response
+            response = chat_session.send_message(user_message)
+
+            # Extract the response text
+            answer: str = response.text or ""
+
+            # Update the stored history with the new exchange
+            history.append({"role": "user", "parts": [user_message]})
+            history.append({"role": "model", "parts": [answer]})
+
+            logger.info(
+                "Gemini response obtained (%d chars) for thread %s.",
+                len(answer),
+                thread_id,
+            )
             return answer, thread_id
 
         except Exception as exc:
-            logger.error("OpenAI fallback also failed: %s", exc)
+            logger.error("Gemini API call failed: %s", exc)
             return (
-                "मुझे खेद है, अभी सेवा उपलब्ध नहीं है। कृपया थोड़ी देर बाद पुनः प्रयास करें।"
-                " (Service temporarily unavailable. Please try again later.)",
+                "मुझे खेद है, अभी सेवा उपलब्ध नहीं है। कृपया थोड़ी देर बाद पुनः प्रयास करें। "
+                "(Service temporarily unavailable. Please try again later.)",
                 thread_id,
             )

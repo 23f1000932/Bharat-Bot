@@ -7,9 +7,9 @@ all 7 Indian regional languages via neural voice synthesis.
 """
 
 import base64
-import io
 import logging
 import os
+import tempfile
 
 from dotenv import load_dotenv
 
@@ -29,6 +29,7 @@ def _get_speech_config():
     """
     try:
         import azure.cognitiveservices.speech as speechsdk  # noqa: PLC0415
+
         if not SPEECH_KEY:
             logger.warning("SPEECH_KEY is not set; speech features will be unavailable.")
             return None
@@ -45,8 +46,9 @@ def _get_speech_config():
 async def speech_to_text(audio_bytes: bytes, language_code: str = "hi-IN") -> str:
     """Convert audio bytes to text using Azure Cognitive Services STT.
 
-    Accepts raw WAV/OGG audio bytes, runs Azure Speech recognition for the
-    specified locale, and returns the transcribed text string.
+    Accepts raw audio bytes, saves to a temporary WAV file, runs Azure
+    Speech recognition for the specified locale, and returns the
+    transcribed text string.
 
     Args:
         audio_bytes: Raw audio content in WAV or OGG format.
@@ -68,28 +70,34 @@ async def speech_to_text(audio_bytes: bytes, language_code: str = "hi-IN") -> st
 
         speech_config.speech_recognition_language = language_code
 
-        # Write bytes to an in-memory stream for the SDK
-        audio_stream = speechsdk.audio.PushAudioInputStream()
-        audio_config = speechsdk.audio.AudioConfig(stream=audio_stream)
+        # Save audio bytes to a temporary file for the SDK
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+            tmp_file.write(audio_bytes)
+            tmp_path = tmp_file.name
 
-        recognizer = speechsdk.SpeechRecognizer(
-            speech_config=speech_config, audio_config=audio_config
-        )
+        try:
+            audio_config = speechsdk.audio.AudioConfig(filename=tmp_path)
+            recognizer = speechsdk.SpeechRecognizer(
+                speech_config=speech_config, audio_config=audio_config
+            )
 
-        audio_stream.write(audio_bytes)
-        audio_stream.close()
+            result = recognizer.recognize_once()
 
-        result = recognizer.recognize_once()
-
-        if result.reason == speechsdk.ResultReason.RecognizedSpeech:
-            logger.info("STT success (lang=%s): %.60s", language_code, result.text)
-            return result.text
-        elif result.reason == speechsdk.ResultReason.NoMatch:
-            logger.warning("STT: no speech could be recognized from audio.")
-            return ""
-        else:
-            logger.warning("STT failed – reason: %s", result.reason)
-            return ""
+            if result.reason == speechsdk.ResultReason.RecognizedSpeech:
+                logger.info("STT success (lang=%s): %.60s", language_code, result.text)
+                return result.text
+            elif result.reason == speechsdk.ResultReason.NoMatch:
+                logger.warning("STT: no speech could be recognized from audio.")
+                return ""
+            else:
+                logger.warning("STT failed – reason: %s", result.reason)
+                return ""
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
     except Exception as exc:
         logger.error("speech_to_text error: %s", exc)
@@ -100,14 +108,14 @@ async def text_to_speech(text: str, language_code: str = "hi-IN") -> bytes:
     """Convert text to audio bytes using Azure Neural TTS.
 
     Uses the appropriate female Neural voice for the given locale to
-    synthesize speech and returns the resulting WAV audio as bytes.
+    synthesize speech and returns the resulting audio as bytes.
 
     Args:
         text: The text to synthesize into speech.
         language_code: Azure Speech locale code (e.g. "hi-IN", "ta-IN").
 
     Returns:
-        WAV audio bytes. Returns empty bytes on failure.
+        MP3 audio bytes. Returns empty bytes on failure.
     """
     if not text or not text.strip():
         logger.warning("text_to_speech received empty text.")
@@ -129,12 +137,9 @@ async def text_to_speech(text: str, language_code: str = "hi-IN") -> bytes:
             speechsdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3
         )
 
-        # Synthesize to an in-memory stream
-        audio_output_stream = speechsdk.audio.AudioOutputStream.create_pull_stream()
-        audio_config = speechsdk.audio.AudioConfig(stream=audio_output_stream)
-
+        # Synthesize to an in-memory pull stream
         synthesizer = speechsdk.SpeechSynthesizer(
-            speech_config=speech_config, audio_config=audio_config
+            speech_config=speech_config, audio_config=None
         )
 
         result = synthesizer.speak_text_async(text).get()
@@ -142,12 +147,16 @@ async def text_to_speech(text: str, language_code: str = "hi-IN") -> bytes:
         if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
             audio_data: bytes = result.audio_data
             logger.info(
-                "TTS success (lang=%s, voice=%s): %d bytes", language_code, voice_name, len(audio_data)
+                "TTS success (lang=%s, voice=%s): %d bytes",
+                language_code, voice_name, len(audio_data),
             )
             return audio_data
         else:
             cancellation = result.cancellation_details
-            logger.warning("TTS failed – reason: %s | %s", result.reason, cancellation.error_details)
+            logger.warning(
+                "TTS failed – reason: %s | %s",
+                result.reason, cancellation.error_details,
+            )
             return b""
 
     except Exception as exc:

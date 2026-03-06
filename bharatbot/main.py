@@ -3,6 +3,8 @@ main.py – FastAPI entry point for BharatBot.
 
 Exposes REST endpoints for text chat, voice chat (STT+TTS), the WhatsApp
 webhook, a health check, and the frontend single-page application.
+Uses Google Gemini for LLM, Azure Speech for STT/TTS, Azure Translator
+for language detection, and Azure AI Search for knowledge retrieval.
 """
 
 import base64
@@ -30,7 +32,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Agent singletons (lazy-imported to avoid circular imports at startup)
+# Agent singletons
 # ---------------------------------------------------------------------------
 
 from agents.agribot import AgriBot
@@ -61,6 +63,19 @@ AGENT_EMOJI: dict[str, str] = {
     "healthbot": "🏥",
     "lawbot": "⚖️",
 }
+
+# ---------------------------------------------------------------------------
+# Startup log — confirm active services
+# ---------------------------------------------------------------------------
+
+logger.info("=" * 60)
+logger.info("BharatBot starting up...")
+logger.info("  LLM Backend       : Google Gemini (gemini-1.5-flash)")
+logger.info("  Speech Service    : Azure Cognitive Services Speech")
+logger.info("  Translator Service: Azure Translator API")
+logger.info("  Knowledge Search  : Azure AI Search")
+logger.info("  Agents loaded     : AgriBot, HealthBot, LawBot")
+logger.info("=" * 60)
 
 # ---------------------------------------------------------------------------
 # FastAPI app
@@ -140,6 +155,12 @@ async def health_check() -> JSONResponse:
     return JSONResponse({
         "status": "ok",
         "agents": ["agribot", "healthbot", "lawbot"],
+        "services": {
+            "llm": "Google Gemini (gemini-1.5-flash)",
+            "speech": "Azure Cognitive Services Speech",
+            "translator": "Azure Translator API",
+            "search": "Azure AI Search",
+        },
         "version": "1.0.0",
     })
 
