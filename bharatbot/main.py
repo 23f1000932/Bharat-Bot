@@ -70,7 +70,7 @@ AGENT_EMOJI: dict[str, str] = {
 
 logger.info("=" * 60)
 logger.info("BharatBot starting up...")
-logger.info("  LLM Backend       : Google Gemini (gemini-1.5-flash)")
+logger.info("  LLM Backend       : Google Gemini (gemini-2.5-flash)")
 logger.info("  Speech Service    : Azure Cognitive Services Speech")
 logger.info("  Translator Service: Azure Translator API")
 logger.info("  Knowledge Search  : Azure AI Search")
@@ -156,7 +156,7 @@ async def health_check() -> JSONResponse:
         "status": "ok",
         "agents": ["agribot", "healthbot", "lawbot"],
         "services": {
-            "llm": "Google Gemini (gemini-1.5-flash)",
+            "llm": "Google Gemini (gemini-2.5-flash)",
             "speech": "Azure Cognitive Services Speech",
             "translator": "Azure Translator API",
             "search": "Azure AI Search",

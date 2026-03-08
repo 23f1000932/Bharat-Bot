@@ -2,7 +2,7 @@
 agents/base_agent.py – Base agent class for BharatBot domain agents.
 
 Provides a unified async chat interface powered by Google Gemini
-(gemini-1.5-flash) with per-thread conversation history management.
+(gemini-2.5-flash) with per-thread conversation history management.
 """
 
 import logging
@@ -34,7 +34,7 @@ class BaseAgent:
     """Base class for BharatBot domain AI agents.
 
     Provides an async ``chat`` method that manages conversation threads
-    using Google Gemini (gemini-1.5-flash) with in-memory history storage.
+    using Google Gemini (gemini-2.5-flash) with in-memory history storage.
 
     Attributes:
         system_prompt: The agent's system instructions (English + language routing).
@@ -56,7 +56,7 @@ class BaseAgent:
         if GEMINI_API_KEY:
             try:
                 self._model = genai.GenerativeModel(
-                    model_name="gemini-1.5-flash",
+                    model_name="gemini-2.5-flash",
                     system_instruction=system_prompt,
                     generation_config=genai.types.GenerationConfig(
                         max_output_tokens=1024,
