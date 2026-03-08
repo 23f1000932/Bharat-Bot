@@ -1,0 +1,69 @@
+# ── Environment & Secrets ──────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example          # keep the example template
+
+# ── Python ─────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── Virtual Environments ───────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# ── Jupyter / IPython ──────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── Testing & Coverage ─────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+coverage.xml
+
+# ── IDE / Editor ───────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.user
+*.swp
+*~
+
+# ── OS Artefacts ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs & Temp ────────────────────────────────────────────────────────────────
+*.log
+logs/
+tmp/
+temp/
+
+# ── Docker ─────────────────────────────────────────────────────────────────────
+*.tar
+docker-compose.override.yml
+
+# ── Node (frontend tooling) ────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ── Knowledge / uploaded data (optional – remove if you WANT these committed) ──
+bharatbot/knowledge/*.json
+bharatbot/knowledge/*.pdf
+bharatbot/knowledge/*.txt
