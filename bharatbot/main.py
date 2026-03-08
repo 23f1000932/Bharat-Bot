@@ -102,18 +102,30 @@ app.add_middleware(
 FRONTEND_PATH: Path = Path(__file__).parent / "frontend" / "index.html"
 
 
-async def _route_and_respond(user_message: str, thread_id: Optional[str]) -> dict:
+async def _route_and_respond(
+    user_message: str,
+    thread_id: Optional[str],
+    forced_agent: Optional[str] = None,
+) -> dict:
     """Core pipeline: detect language → classify intent → run agent.
 
     Args:
         user_message: Raw text from the user.
         thread_id: Optional existing conversation thread ID.
+        forced_agent: If provided and valid, skip intent classification and
+                      route directly to this agent (e.g. 'agribot').
 
     Returns:
         Dict with keys: response, language, agent, thread_id.
     """
     language: str = await detect_language(user_message)
-    intent: str = classify_intent(user_message, language)
+
+    if forced_agent and forced_agent in AGENT_MAP:
+        intent = forced_agent
+        logger.info("Agent explicitly selected by user: %s", intent)
+    else:
+        intent = classify_intent(user_message, language)
+
     agent = AGENT_MAP[intent]
 
     logger.info("Routing to %s (lang=%s, thread=%s)", intent, language, thread_id)
@@ -169,15 +181,19 @@ async def health_check() -> JSONResponse:
 async def chat_text(
     message: Annotated[str, Form()],
     thread_id: Annotated[Optional[str], Form()] = None,
+    agent: Optional[str] = Query(default=None),
 ) -> JSONResponse:
     """Handle a text chat message.
 
-    Detects the language, classifies intent, routes to the correct agent,
-    and returns the response along with metadata.
+    Detects the language, classifies intent (unless an agent is explicitly
+    specified via query param), routes to the correct agent, and returns
+    the response along with metadata.
 
     Args:
         message: The user's text message (form field).
         thread_id: Optional existing thread ID for conversation continuity.
+        agent: Optional query param to force a specific agent
+               ('agribot', 'healthbot', or 'lawbot').
 
     Returns:
         JSON with response, language code, agent name, and thread_id.
@@ -185,8 +201,11 @@ async def chat_text(
     if not message or not message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
+    # Validate agent param if supplied
+    forced = agent if agent in AGENT_MAP else None
+
     try:
-        result = await _route_and_respond(message.strip(), thread_id)
+        result = await _route_and_respond(message.strip(), thread_id, forced)
         return JSONResponse(result)
     except Exception as exc:
         logger.error("chat/text failed: %s", exc)
@@ -197,19 +216,26 @@ async def chat_text(
 async def chat_voice(
     audio: UploadFile = File(...),
     language: str = Form(default="hi-IN"),
+    thread_id: Optional[str] = Form(default=None),
+    agent: Optional[str] = Form(default=None),
 ) -> JSONResponse:
     """Handle a voice chat request via STT → agent → TTS pipeline.
 
-    Converts uploaded audio to text, routes through the agent, converts
-    the response back to speech, and returns the audio as base64.
+    Converts uploaded audio to text, routes through the agent (honouring an
+    explicit agent choice if provided), converts the response back to speech,
+    and returns the audio as base64.
 
     Args:
         audio: Uploaded audio file (WAV or OGG format).
         language: Azure Speech locale code of the user's language.
+        thread_id: Optional existing thread ID for conversation continuity.
+        agent: Optional form field to force a specific agent.
 
     Returns:
         JSON with transcript, response text, base64 audio, and agent name.
     """
+    forced = agent if agent in AGENT_MAP else None
+
     try:
         audio_bytes: bytes = await audio.read()
         if not audio_bytes:
@@ -222,7 +248,7 @@ async def chat_voice(
             transcript = "आपकी आवाज़ समझ नहीं आई। कृपया फिर से बोलें।"
 
         # Route and get response
-        result = await _route_and_respond(transcript, None)
+        result = await _route_and_respond(transcript, thread_id, forced)
         response_text: str = result["response"]
         agent_name: str = result["agent"]
         detected_lang: str = result["language"]
