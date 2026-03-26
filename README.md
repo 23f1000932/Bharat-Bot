@@ -1,165 +1,270 @@
-# 🇮🇳 BharatBot – भारत का AI सहायक
+# 🇮🇳 BharatBot — भारत का AI सहायक
 
-**BharatBot** is a multilingual, multi-agent AI assistant designed for rural India. It answers questions in **7 Indian regional languages** (Hindi, Tamil, Telugu, Kannada, Marathi, Bengali, Gujarati) across three domains:
+**BharatBot** is a multilingual, multi-agent AI assistant built for rural India. It understands and responds in **7 Indian regional languages** — Hindi, Tamil, Telugu, Kannada, Marathi, Bengali, and Gujarati — across three specialized domains.
 
-| Agent | Domain | Use Cases |
-|-------|--------|-----------|
-| 🌾 **AgriBot** | Agriculture | Crop diseases, pest control, mandi prices, ICAR guidelines, govt schemes |
-| 🏥 **HealthBot** | Health | Symptom guidance, Ayushman Bharat, AYUSH, NHP India resources |
-| ⚖️ **LawBot** | Legal | FIR filing, RTI, IPC/CrPC, free legal aid (NALSA), Lok Adalat |
+| Agent | Domain | Covers |
+|---|---|---|
+| 🌾 **AgriBot** | Agriculture | Crop diseases, pest control, mandi prices, soil health, ICAR guidelines, govt schemes (PM-KISAN, PMFBY) |
+| 🏥 **HealthBot** | Health | Symptom guidance, Ayushman Bharat, AYUSH, National Health Portal resources |
+| ⚖️ **LawBot** | Legal Aid | FIR filing, RTI, IPC/CrPC, free legal aid via NALSA, Lok Adalat |
 
-Users speak or type in their native language. BharatBot automatically detects the language, routes to the correct agent, and responds in the same language — via web chat or voice.
-
-Built on **Google Gemini (gemini-2.5-flash)**, **Azure Speech SDK**, **Azure Translator**, and **Azure AI Search**, with a **FastAPI** backend and a mobile-friendly single-page frontend.
+Users type or speak in their native language. BharatBot auto-detects the language, routes to the right agent, and responds in the same language — via web chat or voice.
 
 ---
 
-## Prerequisites
+## 🛠️ APIs & Services Used
 
-- Python 3.11+
-- Azure subscription with the following resources:
-  - Azure Cognitive Services – Speech
-  - Azure Translator
-  - Azure AI Search
-- Docker (for containerised deployment)
+### 1. Google Gemini API — LLM Backend
+- **Model:** `gemini-2.5-flash`
+- **Library:** `google-generativeai`
+- **Purpose:** Powers all three agents (AgriBot, HealthBot, LawBot) with domain-specific system prompts. Maintains per-conversation history using thread IDs stored in memory.
+- **Get Key:** [aistudio.google.com](https://aistudio.google.com/app/apikey)
+
+### 2. Azure Cognitive Services — Speech (STT + TTS)
+- **Library:** `azure-cognitiveservices-speech`
+- **STT:** Converts uploaded audio (WAV/OGG) to text using language-specific recognition.
+- **TTS:** Converts agent responses back to MP3 audio using Azure Neural voices (e.g., `hi-IN-SwaraNeural`, `ta-IN-PallaviNeural`).
+- **Supports:** All 7 Indian regional languages with dedicated female neural voices.
+
+### 3. Azure Translator API — Language Detection
+- **Endpoint:** `api.cognitive.microsofttranslator.com`
+- **Purpose:** Detects the ISO 639-1 language code of incoming text (e.g., `hi`, `ta`, `bn`). Falls back to Hindi if detection fails.
+
+### 4. Azure AI Search — Knowledge Base
+- **Library:** `azure-search-documents`
+- **Purpose:** Three dedicated search indexes power domain-specific knowledge retrieval:
+  - `agribot-knowledge` — crop data, schemes, mandi prices
+  - `healthbot-knowledge` — diseases, vaccines, government health schemes
+  - `lawbot-knowledge` — FIR, RTI, consumer rights, free legal aid
 
 ---
 
-## Local Setup
+## 🔄 Pipeline & Workflow
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/your-org/bharatbot.git
-cd bharatbot
-
-# 2. Copy and fill in environment variables
-cp .env.example .env
-# Open .env in your editor and fill in all Azure credentials
-
-# 3. Install Python dependencies
-pip install -r requirements.txt
-
-# 4. Run the development server
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-# 5. Open the frontend
-# Visit http://localhost:8000 in your browser
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        User Input                           │
+│            (Text via browser  OR  Audio via mic)            │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │   [Voice Path Only]     │
+              │  Azure Speech STT       │
+              │  Audio → Text           │
+              └────────────┬────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │   Azure Translator      │
+              │   detect_language()     │
+              │   → "hi" / "ta" / ...  │
+              └────────────┬────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │   gateway/router.py     │
+              │   classify_intent()     │
+              │   Keyword matching in   │
+              │   7 languages + English │
+              └────────────┬────────────┘
+                           │
+         ┌─────────────────┼──────────────────┐
+         │                 │                  │
+    ┌────▼────┐      ┌──────▼─────┐     ┌────▼────┐
+    │ AgriBot │      │ HealthBot  │     │ LawBot  │
+    │  🌾     │      │    🏥      │     │   ⚖️    │
+    └────┬────┘      └──────┬─────┘     └────┬────┘
+         └─────────────────┼──────────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │  Google Gemini API      │
+              │  gemini-2.5-flash       │
+              │  + System Prompt        │
+              │  + Conversation History │
+              └────────────┬────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │   [Voice Path Only]     │
+              │   Azure Speech TTS      │
+              │   Text → MP3 Audio      │
+              │   → Base64 for JSON     │
+              └────────────┬────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │       Response          │
+              │  { text, audio, agent,  │
+              │    language, thread_id }│
+              └─────────────────────────┘
 ```
 
----
-
-## Creating Foundry Agents in Azure
-
-1. Go to **[Azure AI Studio](https://ai.azure.com)** → your project.
-2. Click **Agents** in the left sidebar → **+ New Agent**.
-3. Create three agents:
-   - **AgriBot**: Set the system prompt from `agents/agribot.py > SYSTEM_PROMPT`
-   - **HealthBot**: System prompt from `agents/healthbot.py > SYSTEM_PROMPT`
-   - **LawBot**: System prompt from `agents/lawbot.py > SYSTEM_PROMPT`
-4. Copy each agent's **Agent ID** (format: `asst_xxxxxxxxxxxx`).
-5. Add the IDs to your `.env` file:
-   ```
-   AGRIBOT_AGENT_ID=asst_xxxx
-   HEALTHBOT_AGENT_ID=asst_xxxx
-   LAWBOT_AGENT_ID=asst_xxxx
-   ```
-
-> **Note:** If Foundry Agent IDs are not set, BharatBot automatically falls back to direct Azure OpenAI API calls using the same system prompts.
+### Key Design Decisions
+- **Intent routing is pure Python** — no API calls, just keyword matching across all 7 languages and English. Fast and zero-cost.
+- **Conversation threads** — each session gets a `thread_id` (UUID). History is kept in memory per thread so follow-up questions have context.
+- **Language-first** — language detection happens before routing. The agent always responds in the user's detected language.
+- **User override** — the frontend lets users manually pick an agent, bypassing the auto-classifier.
 
 ---
 
-## Uploading Knowledge Base
+## 📡 API Endpoints
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/` | Serves the frontend SPA |
+| `GET` | `/health` | Health check — returns service status |
+| `POST` | `/chat/text` | Text chat (form data: `message`, `thread_id`, `?agent=`) |
+| `POST` | `/chat/voice` | Voice chat (multipart: `audio`, `language`, `thread_id`) |
+
+---
+
+## 🚀 Getting Started — Run Locally
+
+### Prerequisites
+- Python 3.11+
+- Azure account with:
+  - **Azure Cognitive Services — Speech** resource
+  - **Azure Translator** resource
+  - **Azure AI Search** service
+- Google Gemini API key
+
+### 1. Clone the Repository
 
 ```bash
-# Make sure SEARCH_ENDPOINT and SEARCH_KEY are set in .env first
+git clone https://github.com/23f1000932/Bharat-Bot.git
+cd Bharat-Bot
+```
+
+### 2. Create a Virtual Environment
+
+```bash
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# macOS / Linux
+source venv/bin/activate
+```
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Configure Environment Variables
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and fill in your credentials:
+
+```env
+# Google Gemini
+GEMINI_API_KEY=your_gemini_api_key
+
+# Azure Speech
+SPEECH_KEY=your_azure_speech_key
+SPEECH_REGION=centralindia
+
+# Azure Translator
+TRANSLATOR_KEY=your_azure_translator_key
+TRANSLATOR_ENDPOINT=https://api.cognitive.microsofttranslator.com
+TRANSLATOR_REGION=global
+
+# Azure AI Search
+SEARCH_ENDPOINT=https://your-search-service.search.windows.net
+SEARCH_KEY=your_search_admin_key
+SEARCH_INDEX_AGRI=agribot-knowledge
+SEARCH_INDEX_HEALTH=healthbot-knowledge
+SEARCH_INDEX_LAW=lawbot-knowledge
+```
+
+### 5. (Optional) Upload Knowledge Base to Azure AI Search
+
+```bash
 python scripts/upload_knowledge.py
 ```
 
-This creates three Azure AI Search indexes and uploads sample documents:
-- `agribot-knowledge` – Crop diseases, schemes, mandi prices
-- `healthbot-knowledge` – Diseases, vaccines, govt schemes
-- `lawbot-knowledge` – FIR, RTI, consumer rights, free legal aid
+This seeds all three search indexes with sample documents for agriculture, health, and law domains.
+
+### 6. Run the Server
+
+```bash
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### 7. Open the Frontend
+
+Visit **[http://localhost:8000](http://localhost:8000)** in your browser.
 
 ---
 
-## Testing Endpoints with cURL
+## 🧪 Test the API with cURL
 
-### Health Check
+**Health Check**
 ```bash
 curl http://localhost:8000/health
 ```
 
-### Text Chat
+**Text Chat (Hindi)**
 ```bash
 curl -X POST http://localhost:8000/chat/text \
-  -F "message=मेरी फसल में पीले पत्ते हो रहे हैं क्या करूं" \
-  -F "thread_id="
+  -F "message=मेरी फसल में पीले पत्ते हो रहे हैं क्या करूं"
 ```
 
-### Voice Chat (send WAV/WebM file)
+**Text Chat — Force a specific agent**
+```bash
+curl -X POST "http://localhost:8000/chat/text?agent=lawbot" \
+  -F "message=How do I file an FIR?"
+```
+
+**Voice Chat**
 ```bash
 curl -X POST http://localhost:8000/chat/voice \
   -F "audio=@your_audio.wav" \
   -F "language=hi-IN"
 ```
 
-### WhatsApp Webhook Verification
-_WhatsApp integration has been removed from this project._
-
 ---
 
-## Docker Deployment
-
-```bash
-# Build the image
-docker build -t bharatbot:latest .
-
-# Run locally with Docker
-docker run -p 8000:8000 --env-file .env bharatbot:latest
-
-# Push to Azure Container Registry
-az acr build --registry <your-registry> --image bharatbot:latest .
-
-# Deploy to Azure Container Apps
-az containerapp create \
-  --name bharatbot \
-  --resource-group <your-rg> \
-  --environment <your-env> \
-  --image <your-registry>.azurecr.io/bharatbot:latest \
-  --target-port 8000 \
-  --ingress external \
-  --env-vars-from-file .env
-```
-
----
-
-## Project Structure
+## 📁 Project Structure
 
 ```
-bharatbot/
-├── main.py                  # FastAPI application (all endpoints)
-├── requirements.txt         
-├── Dockerfile               
-├── .env.example             # Template for environment variables
+Bharat-Bot/
+├── main.py                  # FastAPI app — all endpoints
+├── requirements.txt         # Python dependencies
+├── Dockerfile               # Container image definition
+├── .env.example             # Environment variable template
 ├── gateway/
-│   ├── translator.py        # Azure Translator – language detection & translation
-│   ├── speech.py            # Azure Speech – STT and TTS
-│   └── router.py            # Keyword-based intent classifier (pure Python)
+│   ├── router.py            # Pure-Python keyword intent classifier (7 languages)
+│   ├── translator.py        # Azure Translator — language detection
+│   └── speech.py            # Azure Speech — STT and TTS
 ├── agents/
-│   ├── base_agent.py        # Azure Foundry + OpenAI fallback base class
-│   ├── agribot.py           # Agriculture agent
-│   ├── healthbot.py         # Health agent
-│   └── lawbot.py            # Legal agent
+│   ├── base_agent.py        # Gemini-powered base class with thread history
+│   ├── agribot.py           # Agriculture agent + system prompt
+│   ├── healthbot.py         # Health agent + system prompt
+│   └── lawbot.py            # Legal agent + system prompt
 ├── knowledge/
 │   └── search.py            # Azure AI Search query helper
 ├── frontend/
 │   └── index.html           # Single-page UI (saffron/white/green theme)
 └── scripts/
-    └── upload_knowledge.py  # Seed Azure AI Search with sample documents
+    └── upload_knowledge.py  # Seeds Azure AI Search with sample documents
 ```
 
 ---
 
-## License
+## 🐳 Docker Deployment
 
-MIT License – Free to use, modify, and distribute for social good.
+```bash
+# Build
+docker build -t bharatbot:latest .
+
+# Run
+docker run -p 8000:8000 --env-file .env bharatbot:latest
+```
+
+---
+
+## 📄 License
+
+MIT License — Free to use, modify, and distribute for social good.
