@@ -12,6 +12,43 @@ Users type or speak in their native language. BharatBot auto-detects the languag
 
 ---
 
+
+---
+
+## 🌍 Purpose & Impact
+
+### Why BharatBot Was Built
+
+India's rural population — over **65% of the country** — faces a persistent information gap. A farmer in rural Maharashtra doesn't know which pesticide to use for a new crop disease. A tribal woman in Jharkhand doesn't know she's entitled to free legal aid. A daily-wage worker in Tamil Nadu doesn't know how to access the government health scheme he's eligible for.
+
+**The barrier isn't intelligence. It's access — to the right information, in the right language, at the right time.**
+
+BharatBot was built to bridge that gap. By combining modern AI with India's own languages, it puts expert-level agricultural, medical, and legal knowledge directly into the hands of people who need it most — without requiring English literacy, an expensive consultation, or even a stable internet connection beyond a basic smartphone.
+
+### Who It Helps
+
+- 🌾 **Farmers** who lose crops to diseases they couldn't identify in time
+- 🏥 **Rural families** who skip treatment because they don't know what schemes cover them
+- ⚖️ **Citizens** who give up their rights because the legal system feels inaccessible
+- 🗣️ **Non-English speakers** who are left out of the digital information age
+
+### The Impact We Aim For
+
+| Area | Expected Impact |
+|---|---|
+| **Agriculture** | Reduce crop loss through timely, accurate disease and pest guidance aligned with ICAR standards |
+| **Health** | Increase awareness and uptake of government schemes like Ayushman Bharat among eligible rural families |
+| **Legal** | Empower citizens to exercise their rights — file FIRs, submit RTI requests, access free legal aid |
+| **Language Inclusion** | Make AI accessible to 500M+ Indians who primarily speak a regional language |
+| **Voice Access** | Serve users with low literacy through speech-to-speech interaction |
+
+> _"Technology is only truly powerful when it reaches those who need it most."_
+> BharatBot is our step toward making AI a tool for equity, not just efficiency.
+
+---
+
+
+
 ## 🛠️ APIs & Services Used
 
 ### 1. Google Gemini API — LLM Backend
@@ -70,7 +107,7 @@ Users type or speak in their native language. BharatBot auto-detects the languag
          │                 │                  │
     ┌────▼────┐      ┌──────▼─────┐     ┌────▼────┐
     │ AgriBot │      │ HealthBot  │     │ LawBot  │
-    │  🌾     │      │    🏥      │     │   ⚖️    │
+    │  🌾    │       │    🏥      │    │   ⚖️    │
     └────┬────┘      └──────┬─────┘     └────┬────┘
          └─────────────────┼──────────────────┘
                            │
@@ -263,7 +300,6 @@ docker build -t bharatbot:latest .
 docker run -p 8000:8000 --env-file .env bharatbot:latest
 ```
 
----
 
 ## 📄 License
 
