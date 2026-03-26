@@ -1,8 +1,8 @@
 """
 main.py – FastAPI entry point for BharatBot.
 
-Exposes REST endpoints for text chat, voice chat (STT+TTS), the WhatsApp
-webhook, a health check, and the frontend single-page application.
+Exposes REST endpoints for text chat, voice chat (STT+TTS), a health
+check, and the frontend single-page application.
 Uses Google Gemini for LLM, Azure Speech for STT/TTS, Azure Translator
 for language detection, and Azure AI Search for knowledge retrieval.
 """
@@ -15,9 +15,9 @@ from typing import Annotated, Optional
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 load_dotenv()
 
@@ -41,13 +41,6 @@ from agents.lawbot import LawBot
 from gateway.router import classify_intent
 from gateway.speech import audio_to_base64, speech_to_text, text_to_speech
 from gateway.translator import detect_language, get_locale
-from webhooks.whatsapp import (
-    download_whatsapp_media,
-    extract_message_from_payload,
-    send_whatsapp_text,
-    verify_webhook,
-)
-
 agribot = AgriBot()
 healthbot = HealthBot()
 lawbot = LawBot()
@@ -56,12 +49,6 @@ AGENT_MAP: dict = {
     "agribot": agribot,
     "healthbot": healthbot,
     "lawbot": lawbot,
-}
-
-AGENT_EMOJI: dict[str, str] = {
-    "agribot": "🌾",
-    "healthbot": "🏥",
-    "lawbot": "⚖️",
 }
 
 # ---------------------------------------------------------------------------
@@ -75,6 +62,7 @@ logger.info("  Speech Service    : Azure Cognitive Services Speech")
 logger.info("  Translator Service: Azure Translator API")
 logger.info("  Knowledge Search  : Azure AI Search")
 logger.info("  Agents loaded     : AgriBot, HealthBot, LawBot")
+logger.info("  WhatsApp          : Disabled")
 logger.info("=" * 60)
 
 # ---------------------------------------------------------------------------
@@ -274,104 +262,7 @@ async def chat_voice(
         raise HTTPException(status_code=500, detail=f"Voice chat error: {exc}")
 
 
-@app.get("/webhook/whatsapp")
-async def whatsapp_verify(
-    hub_mode: str = Query(default="", alias="hub.mode"),
-    hub_verify_token: str = Query(default="", alias="hub.verify_token"),
-    hub_challenge: str = Query(default="", alias="hub.challenge"),
-) -> PlainTextResponse:
-    """Verify the Meta WhatsApp webhook subscription.
 
-    Called by Meta during webhook setup. Echoes back hub.challenge if the
-    verify token matches WA_VERIFY_TOKEN.
-
-    Args:
-        hub_mode: Should be "subscribe" (sent by Meta).
-        hub_verify_token: Token sent by Meta; must match WA_VERIFY_TOKEN.
-        hub_challenge: Random challenge string from Meta.
-
-    Returns:
-        Plain text hub.challenge on success, or 403 Forbidden on failure.
-    """
-    challenge: Optional[str] = verify_webhook(hub_mode, hub_verify_token, hub_challenge)
-    if challenge is None:
-        raise HTTPException(status_code=403, detail="Verification failed.")
-    return PlainTextResponse(challenge)
-
-
-@app.post("/webhook/whatsapp")
-async def whatsapp_incoming(request: Request) -> JSONResponse:
-    """Handle incoming WhatsApp messages from Meta webhook.
-
-    Parses the webhook payload, extracts the message (text or audio),
-    routes it through the BharatBot pipeline, and replies via WhatsApp.
-
-    Args:
-        request: The raw FastAPI Request containing the Meta webhook payload.
-
-    Returns:
-        JSON {"status": "ok"} — Meta requires a 200 response.
-    """
-    try:
-        payload: dict = await request.json()
-        logger.info("WhatsApp webhook payload received.")
-
-        message_data = extract_message_from_payload(payload)
-        if not message_data:
-            # Return 200 to acknowledge non-message webhooks (status updates, etc.)
-            return JSONResponse({"status": "ok"})
-
-        sender: str = message_data["from"]
-        msg_type: str = message_data["type"]
-
-        if msg_type == "text":
-            user_text: str = message_data.get("text", "")
-            if not user_text:
-                return JSONResponse({"status": "ok"})
-
-            result = await _route_and_respond(user_text, None)
-            reply = (
-                f"{AGENT_EMOJI.get(result['agent'], '🤖')} "
-                f"{result['response']}"
-            )
-            await send_whatsapp_text(sender, reply)
-
-        elif msg_type == "audio":
-            media_id: str = message_data.get("media_id", "")
-            if not media_id:
-                return JSONResponse({"status": "ok"})
-
-            # Download audio from WhatsApp
-            audio_bytes: Optional[bytes] = await download_whatsapp_media(media_id)
-            if not audio_bytes:
-                await send_whatsapp_text(sender, "Sorry, I could not download your audio message.")
-                return JSONResponse({"status": "ok"})
-
-            # STT (default hi-IN — WhatsApp doesn't tell us user's language up front)
-            transcript: str = await speech_to_text(audio_bytes, "hi-IN")
-            if not transcript:
-                await send_whatsapp_text(
-                    sender,
-                    "मैं आपकी आवाज़ नहीं समझ पाया। कृपया टेक्स्ट में लिखें।\n"
-                    "(Could not understand audio. Please type your message.)",
-                )
-                return JSONResponse({"status": "ok"})
-
-            result = await _route_and_respond(transcript, None)
-            reply = (
-                f"{AGENT_EMOJI.get(result['agent'], '🤖')} "
-                f"[आपने कहा / You said]: {transcript}\n\n"
-                f"{result['response']}"
-            )
-            await send_whatsapp_text(sender, reply)
-
-        else:
-            logger.info("Unsupported WhatsApp message type: %s", msg_type)
-
-    except Exception as exc:
-        logger.error("WhatsApp webhook error: %s", exc)
-        # Always return 200 to Meta to prevent webhook retries
-    return JSONResponse({"status": "ok"})
 
 
 # ---------------------------------------------------------------------------

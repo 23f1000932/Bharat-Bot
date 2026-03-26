@@ -8,9 +8,9 @@
 | 🏥 **HealthBot** | Health | Symptom guidance, Ayushman Bharat, AYUSH, NHP India resources |
 | ⚖️ **LawBot** | Legal | FIR filing, RTI, IPC/CrPC, free legal aid (NALSA), Lok Adalat |
 
-Users speak or type in their native language. BharatBot automatically detects the language, routes to the correct agent, and responds in the same language — via web chat, voice, or WhatsApp.
+Users speak or type in their native language. BharatBot automatically detects the language, routes to the correct agent, and responds in the same language — via web chat or voice.
 
-Built on **Azure AI Foundry (GPT-4o-mini)**, **Azure Speech SDK**, **Azure Translator**, and **Azure AI Search**, with a **FastAPI** backend and a mobile-friendly single-page frontend.
+Built on **Google Gemini (gemini-2.5-flash)**, **Azure Speech SDK**, **Azure Translator**, and **Azure AI Search**, with a **FastAPI** backend and a mobile-friendly single-page frontend.
 
 ---
 
@@ -18,14 +18,10 @@ Built on **Azure AI Foundry (GPT-4o-mini)**, **Azure Speech SDK**, **Azure Trans
 
 - Python 3.11+
 - Azure subscription with the following resources:
-  - Azure OpenAI (GPT-4o-mini deployment)
-  - Azure AI Foundry Project (for Agent Service)
   - Azure Cognitive Services – Speech
   - Azure Translator
   - Azure AI Search
-- (Optional) Meta WhatsApp Cloud API access for WhatsApp integration
 - Docker (for containerised deployment)
-- ngrok (for local WhatsApp webhook testing)
 
 ---
 
@@ -108,30 +104,7 @@ curl -X POST http://localhost:8000/chat/voice \
 ```
 
 ### WhatsApp Webhook Verification
-```bash
-curl "http://localhost:8000/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=bharatbot_webhook_2024&hub.challenge=test123"
-```
-
----
-
-## WhatsApp Webhook with ngrok
-
-```bash
-# 1. Start BharatBot locally
-uvicorn main:app --host 0.0.0.0 --port 8000
-
-# 2. In a new terminal, start ngrok
-ngrok http 8000
-
-# 3. Copy the ngrok HTTPS URL (e.g. https://abc123.ngrok.io)
-
-# 4. In the Meta Developers console:
-#    App → WhatsApp → Configuration → Webhook URL:
-#    https://abc123.ngrok.io/webhook/whatsapp
-#    Verify Token: bharatbot_webhook_2024
-
-# 5. Subscribe to "messages" webhook field
-```
+_WhatsApp integration has been removed from this project._
 
 ---
 
@@ -179,8 +152,6 @@ bharatbot/
 │   └── lawbot.py            # Legal agent
 ├── knowledge/
 │   └── search.py            # Azure AI Search query helper
-├── webhooks/
-│   └── whatsapp.py          # Meta WhatsApp Cloud API handler
 ├── frontend/
 │   └── index.html           # Single-page UI (saffron/white/green theme)
 └── scripts/
