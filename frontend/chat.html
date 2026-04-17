@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BharatBot Chat</title>
+  <meta name="description" content="Chat with BharatBot using text and voice." />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=block');
+
+    :root {
+      --black: #000000;
+      --white: #ffffff;
+      --panel: #0a0a0a;
+      --panel-2: #121212;
+      --line: #222222;
+      --muted: #a8a8a8;
+      --input: #0f0f0f;
+      --hover: #1a1a1a;
+      --focus: #ffffff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Inter', 'Helvetica Neue', sans-serif;
+      background: var(--black);
+      color: var(--white);
+      line-height: 1.45;
+    }
+
+    button, select, textarea, a { font: inherit; color: inherit; }
+
+    .app {
+      height: 100%;
+      display: grid;
+      grid-template-columns: 290px 1fr;
+    }
+
+    .sidebar {
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .side-top {
+      padding: 18px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: .95;
+      letter-spacing: -0.03em;
+    }
+
+    .meta {
+      margin-top: 8px;
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .side-body {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .control, .btn, .thread {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid #2a2a2a;
+      background: var(--panel-2);
+      color: var(--white);
+      padding: 10px 11px;
+      font-size: 14px;
+    }
+
+    .btn {
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      font-size: 12px;
+      font-weight: 700;
+      transition: .2s ease;
+    }
+
+    .btn:hover { background: var(--white); color: var(--black); border-color: var(--white); }
+
+    .thread {
+      color: #d2d2d2;
+      word-break: break-all;
+      display: flex;
+      align-items: center;
+    }
+
+    .focusable:focus-visible, .btn:focus-visible, .control:focus-visible, .send:focus-visible, .mic:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .main {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      background: var(--black);
+    }
+
+    .header {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .title {
+      font-size: clamp(22px, 2.2vw, 34px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .edition {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .messages {
+      overflow-y: auto;
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+      background: var(--black);
+    }
+
+    .welcome, .msg {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .welcome {
+      padding: 16px;
+      color: #d8d8d8;
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    .msg.user { justify-self: end; background: #141414; }
+    .msg.bot { justify-self: start; }
+
+    .msg-head {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .msg-head-right { display: inline-flex; align-items: center; gap: 8px; }
+
+    .msg-body {
+      padding: 13px 12px;
+      font-size: 16px;
+      line-height: 1.7;
+      color: #f0f0f0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .transcript {
+      padding: 0 12px 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .mini-btn {
+      min-height: 30px;
+      border: 1px solid #3a3a3a;
+      background: transparent;
+      color: #e5e5e5;
+      padding: 5px 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .mini-btn:hover { background: var(--white); color: var(--black); border-color: var(--white); }
+
+    .composer {
+      border-top: 1px solid var(--line);
+      padding: 12px 18px;
+      background: var(--panel);
+    }
+
+    .composer-wrap {
+      border: 1px solid #2a2a2a;
+      background: var(--input);
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+    }
+
+    #input {
+      min-height: 58px;
+      max-height: 170px;
+      resize: none;
+      border: 0;
+      border-right: 1px solid #2a2a2a;
+      background: transparent;
+      color: var(--white);
+      padding: 12px;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    #input::placeholder { color: #8f8f8f; }
+    #input:focus-visible { outline: none; background: #151515; }
+
+    .send, .mic {
+      min-width: 62px;
+      min-height: 58px;
+      border: 0;
+      border-left: 1px solid #2a2a2a;
+      background: transparent;
+      color: var(--white);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      font-size: 11px;
+      font-weight: 700;
+      transition: .2s ease;
+    }
+
+    .send:hover, .mic:hover { background: var(--white); color: var(--black); }
+    .mic.recording { background: #ffffff; color: #000000; }
+
+    .status-row {
+      margin-top: 8px;
+      font-size: 11px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .toast {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      border: 1px solid #3a3a3a;
+      background: #ffffff;
+      color: #000000;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+      z-index: 50;
+      max-width: 320px;
+    }
+    .toast.show { display: block; }
+
+    @media (max-width: 960px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { border-right: 0; border-bottom: 1px solid var(--line); min-height: auto; }
+      .main { min-height: 0; }
+      .welcome, .msg { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="side-top">
+        <div class="brand">BharatBot</div>
+        <div class="meta">Solid Interface</div>
+      </div>
+      <div class="side-body">
+        <button class="btn focusable" id="newChatBtn" type="button">New Chat</button>
+
+        <div>
+          <label class="label" for="agentSelect">Agent</label>
+          <select class="control focusable" id="agentSelect">
+            <option value="">Auto Route</option>
+            <option value="agribot">AgriBot</option>
+            <option value="healthbot">HealthBot</option>
+            <option value="lawbot">LawBot</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="label" for="langSelect">Voice Language</label>
+          <select class="control focusable" id="langSelect">
+            <option value="hi-IN">Hindi</option>
+            <option value="ta-IN">Tamil</option>
+            <option value="te-IN">Telugu</option>
+            <option value="kn-IN">Kannada</option>
+            <option value="mr-IN">Marathi</option>
+            <option value="bn-IN">Bengali</option>
+            <option value="gu-IN">Gujarati</option>
+            <option value="en-IN">English</option>
+          </select>
+        </div>
+
+        <div>
+          <span class="label">Thread</span>
+          <div class="thread"> <span id="threadBox">Not started</span> </div>
+        </div>
+
+        <a class="btn focusable" href="/" style="text-decoration:none; display:flex; align-items:center; justify-content:center;">Back to Landing</a>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="header">
+        <h1 class="title" id="chatTitle">Ask BharatBot</h1>
+        <p class="edition" id="editionMeta"></p>
+      </header>
+
+      <section class="messages" id="messages" aria-live="polite">
+        <article class="welcome" id="welcome">
+          Ask your question in text or voice. BharatBot routes the request to the right expert area and keeps context through the thread.
+        </article>
+      </section>
+
+      <section class="composer">
+        <div class="composer-wrap">
+          <textarea id="input" class="focusable" placeholder="Type your question..." aria-label="Message input"></textarea>
+          <button class="send focusable" id="sendBtn" type="button" aria-label="Send message">Send</button>
+          <button class="mic focusable" id="micBtn" type="button" aria-label="Record voice">Mic</button>
+        </div>
+        <div class="status-row">
+          <span>Shift + Enter for new line</span>
+          <span id="status">Ready</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function () {
+      var messages = document.getElementById('messages');
+      var welcome = document.getElementById('welcome');
+      var input = document.getElementById('input');
+      var sendBtn = document.getElementById('sendBtn');
+      var micBtn = document.getElementById('micBtn');
+      var statusEl = document.getElementById('status');
+      var threadBox = document.getElementById('threadBox');
+      var agentSelect = document.getElementById('agentSelect');
+      var langSelect = document.getElementById('langSelect');
+      var newChatBtn = document.getElementById('newChatBtn');
+      var toast = document.getElementById('toast');
+      var title = document.getElementById('chatTitle');
+      var editionMeta = document.getElementById('editionMeta');
+
+      var threadId = null;
+      var isLoading = false;
+      var isRecording = false;
+      var mediaRecorder = null;
+      var audioChunks = [];
+
+      function setEditionMeta() {
+        var now = new Date();
+        var text = now.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: '2-digit' });
+        editionMeta.textContent = 'Vol. 1 | ' + text;
+      }
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        window.clearTimeout(showToast.timer);
+        showToast.timer = window.setTimeout(function () {
+          toast.classList.remove('show');
+        }, 2500);
+      }
+
+      function setStatus(text) {
+        statusEl.textContent = text;
+      }
+
+      function setThread(id) {
+        threadId = id || null;
+        threadBox.textContent = threadId || 'Not started';
+      }
+
+      function setLoading(state) {
+        isLoading = state;
+        sendBtn.disabled = state;
+        input.disabled = state;
+        micBtn.disabled = state;
+        setStatus(state ? 'Working' : 'Ready');
+      }
+
+      function ts() {
+        return new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      }
+
+      function removeWelcome() {
+        var existing = document.getElementById('welcome');
+        if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+        welcome = null;
+      }
+
+      function addMessage(role, text, agent, transcript, audioBase64) {
+        removeWelcome();
+
+        var card = document.createElement('article');
+        card.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+
+        var head = document.createElement('div');
+        head.className = 'msg-head';
+
+        var left = document.createElement('span');
+        left.textContent = role === 'user' ? 'You' : (agent || 'BharatBot');
+        head.appendChild(left);
+
+        var rightWrap = document.createElement('div');
+        rightWrap.className = 'msg-head-right';
+
+        if (audioBase64) {
+          var play = document.createElement('button');
+          play.type = 'button';
+          play.className = 'mini-btn focusable';
+          play.textContent = 'Play';
+          play.addEventListener('click', function () { playAudio(audioBase64); });
+          rightWrap.appendChild(play);
+        }
+
+        var right = document.createElement('span');
+        right.textContent = ts();
+        rightWrap.appendChild(right);
+        head.appendChild(rightWrap);
+
+        var body = document.createElement('div');
+        body.className = 'msg-body';
+        body.textContent = text || '';
+
+        card.appendChild(head);
+        card.appendChild(body);
+
+        if (transcript) {
+          var transcriptEl = document.createElement('div');
+          transcriptEl.className = 'transcript';
+          transcriptEl.textContent = 'Transcript: "' + transcript + '"';
+          card.appendChild(transcriptEl);
+        }
+
+        messages.appendChild(card);
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      function playAudio(base64) {
+        try {
+          var bin = atob(base64);
+          var bytes = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          var blob = new Blob([bytes], { type: 'audio/mp3' });
+          var url = URL.createObjectURL(blob);
+          var audio = new Audio(url);
+          audio.play();
+          audio.onended = function () { URL.revokeObjectURL(url); };
+        } catch (err) {
+          showToast('Could not play audio');
+        }
+      }
+
+      async function sendText(message) {
+        if (!message || !message.trim() || isLoading) return;
+
+        addMessage('user', message);
+        setLoading(true);
+
+        var form = new FormData();
+        form.append('message', message);
+        if (threadId) form.append('thread_id', threadId);
+        if (agentSelect.value) form.append('agent', agentSelect.value);
+
+        try {
+          var query = agentSelect.value ? ('?agent=' + encodeURIComponent(agentSelect.value)) : '';
+          var res = await fetch('/chat/text' + query, { method: 'POST', body: form });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.detail || 'Unknown error');
+
+          setThread(data.thread_id);
+          addMessage('bot', data.response, data.agent, null, null);
+          if (data.agent) title.textContent = 'Ask ' + data.agent;
+        } catch (err) {
+          showToast('Error: ' + err.message);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function sendVoiceBlob(blob) {
+        if (isLoading) return;
+        addMessage('user', 'Voice message');
+        setLoading(true);
+
+        var form = new FormData();
+        form.append('audio', blob, 'voice.webm');
+        form.append('language', langSelect.value);
+        if (threadId) form.append('thread_id', threadId);
+        if (agentSelect.value) form.append('agent', agentSelect.value);
+
+        try {
+          var res = await fetch('/chat/voice', { method: 'POST', body: form });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.detail || 'Unknown error');
+
+          setThread(data.thread_id);
+          addMessage('bot', data.response, data.agent, data.transcript || null, data.audio_base64 || null);
+          if (data.agent) title.textContent = 'Ask ' + data.agent;
+        } catch (err) {
+          showToast('Voice error: ' + err.message);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function toggleMic() {
+        if (isLoading) return;
+
+        if (isRecording) {
+          mediaRecorder.stop();
+          isRecording = false;
+          micBtn.classList.remove('recording');
+          setStatus('Processing voice');
+          return;
+        }
+
+        try {
+          var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          audioChunks = [];
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.ondataavailable = function (e) { audioChunks.push(e.data); };
+          mediaRecorder.onstop = function () {
+            var blob = new Blob(audioChunks, { type: 'audio/webm' });
+            stream.getTracks().forEach(function (t) { t.stop(); });
+            sendVoiceBlob(blob);
+          };
+          mediaRecorder.start();
+          isRecording = true;
+          micBtn.classList.add('recording');
+          setStatus('Recording');
+        } catch (err) {
+          showToast('Microphone access denied');
+        }
+      }
+
+      function clearChat() {
+        messages.innerHTML = '<article class="welcome" id="welcome">Ask your question in text or voice. BharatBot routes the request to the right expert area and keeps context through the thread.</article>';
+        welcome = document.getElementById('welcome');
+        setThread(null);
+        title.textContent = 'Ask BharatBot';
+        showToast('New chat started');
+      }
+
+      sendBtn.addEventListener('click', function () {
+        var message = input.value.trim();
+        if (!message) return;
+        input.value = '';
+        input.style.height = '58px';
+        sendText(message);
+      });
+
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendBtn.click();
+        }
+      });
+
+      input.addEventListener('input', function () {
+        input.style.height = '58px';
+        input.style.height = Math.min(input.scrollHeight, 170) + 'px';
+      });
+
+      micBtn.addEventListener('click', toggleMic);
+      newChatBtn.addEventListener('click', clearChat);
+
+      setEditionMeta();
+      setThread(null);
+    })();
+  </script>
+</body>
+</html>

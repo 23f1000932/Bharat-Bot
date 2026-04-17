@@ -88,6 +88,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 FRONTEND_PATH: Path = Path(__file__).parent / "frontend" / "index.html"
+CHAT_PATH: Path = Path(__file__).parent / "frontend" / "chat.html"
 
 
 async def _route_and_respond(
@@ -143,6 +144,14 @@ async def serve_frontend() -> FileResponse:
     if not FRONTEND_PATH.exists():
         raise HTTPException(status_code=404, detail="Frontend not found.")
     return FileResponse(str(FRONTEND_PATH), media_type="text/html")
+
+
+@app.get("/chat", response_class=HTMLResponse)
+async def serve_chat_page() -> FileResponse:
+    """Serve the dedicated chat interface page."""
+    if not CHAT_PATH.exists():
+        raise HTTPException(status_code=404, detail="Chat frontend not found.")
+    return FileResponse(str(CHAT_PATH), media_type="text/html")
 
 
 @app.get("/health")
