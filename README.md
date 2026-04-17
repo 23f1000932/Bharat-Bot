@@ -144,7 +144,8 @@ BharatBot was built to bridge that gap. By combining modern AI with India's own 
 
 | Method | Route | Description |
 |---|---|---|
-| `GET` | `/` | Serves the frontend SPA |
+| `GET` | `/` | Serves the landing page |
+| `GET` | `/chat` | Serves the dedicated chat interface |
 | `GET` | `/health` | Health check — returns service status |
 | `POST` | `/chat/text` | Text chat (form data: `message`, `thread_id`, `?agent=`) |
 | `POST` | `/chat/voice` | Voice chat (multipart: `audio`, `language`, `thread_id`) |
@@ -231,7 +232,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 ### 7. Open the Frontend
 
-Visit **[http://localhost:8000](http://localhost:8000)** in your browser.
+Visit **[http://localhost:8000](http://localhost:8000)** in your browser for the landing page, then click **Try BharatBot** (or open **[http://localhost:8000/chat](http://localhost:8000/chat)** directly) for the chat interface.
 
 ---
 
@@ -283,12 +284,12 @@ Bharat-Bot/
 ├── knowledge/
 │   └── search.py            # Azure AI Search query helper
 ├── frontend/
-│   └── index.html           # Single-page UI (saffron/white/green theme)
+│   ├── index.html           # Landing page (project overview + CTA to chat)
+│   └── chat.html            # Dedicated chat UI (text + voice + agent/language controls)
 └── scripts/
     └── upload_knowledge.py  # Seeds Azure AI Search with sample documents
 ```
 
----
 
 ## 🐳 Docker Deployment
 
