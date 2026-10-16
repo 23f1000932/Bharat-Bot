@@ -75,9 +75,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
+ALLOWED_ORIGINS_ENV: str = os.getenv("ALLOWED_ORIGINS", "*")
+# Support comma-separated list of origins, e.g. "https://bharatbot.vercel.app,http://localhost:3000"
+ALLOWED_ORIGINS: list[str] = (
+    [o.strip() for o in ALLOWED_ORIGINS_ENV.split(",")]
+    if ALLOWED_ORIGINS_ENV != "*"
+    else ["*"]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

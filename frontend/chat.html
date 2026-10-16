@@ -376,6 +376,13 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    // ─── DEPLOYMENT CONFIG ────────────────────────────────────────────────────
+    // After you deploy the backend on Render, paste your Render URL below.
+    // Example: 'https://bharatbot-backend.onrender.com'
+    // Leave it as empty string ('') to use the same server (local dev).
+    var API_BASE_URL = '';
+    // ─────────────────────────────────────────────────────────────────────────
+
     (function () {
       var messages = document.getElementById('messages');
       var welcome = document.getElementById('welcome');
@@ -515,7 +522,7 @@
 
         try {
           var query = agentSelect.value ? ('?agent=' + encodeURIComponent(agentSelect.value)) : '';
-          var res = await fetch('/chat/text' + query, { method: 'POST', body: form });
+          var res = await fetch(API_BASE_URL + '/chat/text' + query, { method: 'POST', body: form });
           var data = await res.json();
           if (!res.ok) throw new Error(data.detail || 'Unknown error');
 
@@ -541,7 +548,7 @@
         if (agentSelect.value) form.append('agent', agentSelect.value);
 
         try {
-          var res = await fetch('/chat/voice', { method: 'POST', body: form });
+          var res = await fetch(API_BASE_URL + '/chat/voice', { method: 'POST', body: form });
           var data = await res.json();
           if (!res.ok) throw new Error(data.detail || 'Unknown error');
 

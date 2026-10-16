@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: bharatbot-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SPEECH_KEY
+        sync: false
+      - key: SPEECH_REGION
+        value: centralindia
+      - key: TRANSLATOR_KEY
+        sync: false
+      - key: TRANSLATOR_ENDPOINT
+        value: https://api.cognitive.microsofttranslator.com
+      - key: TRANSLATOR_REGION
+        value: global
+      - key: SEARCH_ENDPOINT
+        sync: false
+      - key: SEARCH_KEY
+        sync: false
+      - key: SEARCH_INDEX_AGRI
+        value: agribot-knowledge
+      - key: SEARCH_INDEX_HEALTH
+        value: healthbot-knowledge
+      - key: SEARCH_INDEX_LAW
+        value: lawbot-knowledge
